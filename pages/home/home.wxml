@@ -1,0 +1,115 @@
+<!-- 首页 -->
+<view class="container">
+  <!-- 顶部装饰波浪 -->
+  <view class="wave-container">
+    <view class="wave wave1"></view>
+    <view class="wave wave2"></view>
+  </view>
+
+  <!-- 蔬菜水果装饰 -->
+  <view class="decoration-icons">
+    <text class="deco-icon deco1">🍅</text>
+    <text class="deco-icon deco2">🥬</text>
+    <text class="deco-icon deco3">🥕</text>
+    <text class="deco-icon deco4">🌽</text>
+    <text class="deco-icon deco5">🍓</text>
+    <text class="deco-icon deco6">🥒</text>
+  </view>
+
+  <!-- 主内容区 -->
+  <view class="content">
+    <!-- Logo区域 -->
+    <view class="logo-section">
+      <view class="logo-circle">
+        <text class="logo-icon">🌱</text>
+      </view>
+      <view class="title-group">
+        <text class="main-title">智能温室大棚监测</text>
+        <text class="sub-title">Smart Greenhouse Monitoring</text>
+      </view>
+    </view>
+
+    <!-- 欢迎卡片 -->
+    <view class="welcome-card">
+      <view class="welcome-header">
+        <text class="welcome-icon">🏡</text>
+        <text class="welcome-text">欢迎使用</text>
+      </view>
+      <view class="welcome-body">
+        <text class="welcome-desc">智能温室大棚系统，实时监测温湿度、水位及空气质量，守护您的绿色农场</text>
+      </view>
+    </view>
+
+    <!-- 功能介绍 -->
+    <view class="features">
+      <view class="feature-item">
+        <view class="feature-icon-bg green">
+          <text class="feature-icon">🌡️</text>
+        </view>
+        <text class="feature-title">实时监测</text>
+        <text class="feature-desc">温湿度水位采集</text>
+      </view>
+
+      <view class="feature-item">
+        <view class="feature-icon-bg green">
+          <text class="feature-icon">💨</text>
+        </view>
+        <text class="feature-title">智能控制</text>
+        <text class="feature-desc">风扇天窗自动化</text>
+      </view>
+
+      <view class="feature-item">
+        <view class="feature-icon-bg green">
+          <text class="feature-icon">📹</text>
+        </view>
+        <text class="feature-title">远程监控</text>
+        <text class="feature-desc">实时视频查看</text>
+      </view>
+    </view>
+
+    <!-- 系统状态 -->
+    <view class="system-status">
+      <view class="status-item">
+        <text class="status-label">系统版本</text>
+        <text class="status-value">V1.0</text>
+      </view>
+      <view class="status-divider"></view>
+      <view class="status-item">
+        <text class="status-label">传感器</text>
+        <text class="status-value">4个</text>
+      </view>
+      <view class="status-divider"></view>
+      <view class="status-item">
+        <text class="status-label">运行状态</text>
+        <text class="status-value status-online">● 正常</text>
+      </view>
+    </view>
+
+    <!-- 作者信息 -->
+    <view class="author-section">
+      <view class="author-card">
+        <view class="author-avatar">
+          <text class="author-icon">👨‍💻</text>
+        </view>
+        <view class="author-info">
+          <text class="author-label">开发者</text>
+          <text class="author-name">梁承伟</text>
+          <text class="author-desc">Liang Chengwei</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 快速开始按钮 -->
+    <view class="quick-start">
+      <button class="start-btn" bindtap="goToSensor">
+        <text class="btn-text">开始监测</text>
+        <text class="btn-arrow">→</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 底部装饰 -->
+  <view class="footer">
+    <text class="footer-text">Powered by IoT Technology</text>
+  </view>
+</view>

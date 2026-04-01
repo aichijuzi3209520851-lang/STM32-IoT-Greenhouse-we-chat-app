@@ -1,0 +1,144 @@
+<!-- 摄像头页面 -->
+<view class="container">
+  <!-- 连接配置区域 -->
+  <view class="config-section" wx:if="{{!connected}}">
+    <view class="config-card">
+      <view class="card-header">
+        <text class="header-icon">📹</text>
+        <text class="header-title">ESP32摄像头连接</text>
+      </view>
+
+      <view class="card-body">
+        <view class="input-group">
+          <text class="input-label">摄像头IP地址</text>
+          <input
+            class="ip-input"
+            type="text"
+            placeholder="例如：192.168.137.108"
+            value="{{cameraUrl}}"
+            bindinput="onUrlInput"
+          />
+          <text class="input-hint">端口81会自动添加，直接输入IP即可</text>
+        </view>
+
+        <view class="example-section">
+          <text class="example-title">输入示例（推荐直接输入IP）：</text>
+          <view class="example-item">
+            <text class="example-label">• 直接输入IP：</text>
+            <text class="example-value">192.168.137.108</text>
+          </view>
+          <view class="example-item">
+            <text class="example-label">• 带端口的IP：</text>
+            <text class="example-value">192.168.137.108:81</text>
+          </view>
+          <view class="example-item">
+            <text class="example-label">• 完整地址：</text>
+            <text class="example-value">http://192.168.137.108:81/stream</text>
+          </view>
+        </view>
+
+        <button class="connect-btn" bindtap="connectCamera">
+          <text class="btn-icon">🔗</text>
+          <text class="btn-text">连接摄像头</text>
+        </button>
+      </view>
+    </view>
+
+    <!-- 历史记录 -->
+    <view class="history-section" wx:if="{{history.length > 0}}">
+      <view class="history-header">
+        <text class="history-title">📝 历史记录</text>
+        <text class="history-clear" bindtap="clearHistory">清空</text>
+      </view>
+      <view class="history-list">
+        <view
+          class="history-item"
+          wx:for="{{history}}"
+          wx:key="index"
+          bindtap="selectHistory"
+          data-url="{{item}}"
+        >
+          <text class="history-icon">⏱️</text>
+          <text class="history-url">{{item}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 摄像头画面显示区域 -->
+  <view class="camera-view" wx:if="{{connected}}">
+    <view class="view-header">
+      <text class="view-title">📡 实时监控</text>
+      <button class="disconnect-btn" bindtap="disconnectCamera" size="mini">
+        断开连接
+      </button>
+    </view>
+
+    <view class="stream-container">
+      <!-- 
+        注意：由于微信小程序安全策略，本地HTTP资源可能无法加载。
+        解决方法：
+        1. 确保在微信开发者工具中勾选了"不校验合法域名"
+        2. 真机调试时需要在微信公众号后台配置业务域名或使用HTTPS
+        3. 局域网调试时建议使用真机调试模式
+      -->
+      <image class="camera-stream" src="{{fullCameraUrl}}" mode="widthFix" binderror="onStreamError" bindload="onStreamLoad"/>
+      <view class="loading-hint" wx:if="{{!streamLoaded}}">
+        <text class="loading-text">加载中...</text>
+      </view>
+    </view>
+
+    <view class="view-footer">
+      <text class="footer-text">当前地址: {{cameraUrl}}</text>
+    </view>
+    
+    <!-- 调试信息 -->
+    <view class="debug-info" wx:if="{{!streamLoaded && connected}}">
+      <text class="debug-title">💡 调试提示</text>
+      <view class="debug-content">
+        <text>1. 检查摄像头是否正常工作</text>
+        <text>2. 确保手机与摄像头在同一局域网</text>
+        <text>3. 确认使用端口81（画面的固定端口）</text>
+        <text>4. 确认IP地址正确（可在串口监视器查看）</text>
+        <text>5. 开发者工具中需勾选"不校验合法域名"</text>
+        <text>6. 检查防火墙设置</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="help-section" wx:if="{{!connected}}">
+    <view class="help-card">
+      <view class="help-header">
+        <text class="help-icon">💡</text>
+        <text class="help-title">使用说明</text>
+      </view>
+      <view class="help-content">
+        <view class="help-item">
+          <text class="help-number">1.</text>
+          <text class="help-text">确保ESP32摄像头已上电并连接WiFi</text>
+        </view>
+        <view class="help-item">
+          <text class="help-number">2.</text>
+          <text class="help-text">手机与摄像头需要在同一局域网</text>
+        </view>
+        <view class="help-item">
+          <text class="help-number">3.</text>
+          <text class="help-text">在串口监视器中查看摄像头的IP地址</text>
+        </view>
+        <view class="help-item">
+          <text class="help-number">4.</text>
+          <text class="help-text">直接输入IP地址即可（端口81会自动添加）</text>
+        </view>
+        <view class="help-item">
+          <text class="help-number">5.</text>
+          <text class="help-text">确保开发者工具中勾选了"不校验合法域名"</text>
+        </view>
+        <view class="help-item">
+          <text class="help-number">6.</text>
+          <text class="help-text">画面端口为81，数据通信端口为8888或2080</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

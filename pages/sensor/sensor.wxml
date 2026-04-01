@@ -1,0 +1,103 @@
+<!-- 传感器页面 -->
+<view class="container">
+  <!-- MQTT连接状态栏 -->
+  <view class="mqtt-status-bar {{mqttConnected ? 'connected' : ''}}">
+    <view class="status-info">
+      <text class="status-icon">{{mqttConnected ? '●' : '○'}}</text>
+      <text class="status-text">{{mqttConnected ? 'MQTT已连接' : 'MQTT未连接'}}</text>
+    </view>
+    <button class="connect-btn" bindtap="{{mqttConnected ? 'disconnectMqtt' : 'showMqttConfig'}}" size="mini">
+      {{mqttConnected ? '断开' : '配置'}}
+    </button>
+  </view>
+
+  <!-- MQTT配置弹窗 -->
+  <view class="mqtt-config-modal" wx:if="{{showConfig}}" catchtap="hideConfig">
+    <view class="config-content" catchtap="stopPropagation">
+      <view class="config-header">
+        <text class="config-title">MQTT服务器配置</text>
+        <text class="close-btn" bindtap="hideConfig">×</text>
+      </view>
+
+      <view class="config-body">
+        <view class="config-item">
+          <text class="config-label">服务器地址</text>
+          <input class="config-input" type="text" placeholder="例如：192.168.1.100" value="{{mqttHost}}" bindinput="onHostInput"/>
+        </view>
+
+        <view class="config-item">
+          <text class="config-label">WebSocket端口</text>
+          <input class="config-input" type="number" placeholder="例如：8083" value="{{mqttPort}}" bindinput="onPortInput"/>
+        </view>
+
+        <view class="config-item">
+          <text class="config-label">订阅主题</text>
+          <input class="config-input" type="text" placeholder="例如：LCW2" value="{{mqttTopic}}" bindinput="onTopicInput"/>
+        </view>
+
+        <view class="config-hint">
+          <text>提示：请确保MQTT服务器已启动并可访问</text>
+        </view>
+      </view>
+
+      <view class="config-footer">
+        <button class="cancel-btn" bindtap="hideConfig">取消</button>
+        <button class="save-btn" bindtap="saveConfigAndConnect">保存并连接</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 传感器数据区域 -->
+  <scroll-view class="sensor-scroll" scroll-y>
+    <!-- 传感器网格 -->
+    <view class="sensor-grid">
+      <!-- 温度 -->
+      <view class="sensor-box {{sensorData.temperature > thresholds.temperature ? 'alarm' : ''}}">
+        <text class="sensor-icon">🌡️</text>
+        <text class="sensor-name">温度</text>
+        <text class="sensor-value">{{sensorData.temperature || '--'}}℃</text>
+      </view>
+
+      <!-- 湿度 -->
+      <view class="sensor-box {{sensorData.humidity > thresholds.humidity ? 'alarm' : ''}}">
+        <text class="sensor-icon">💧</text>
+        <text class="sensor-name">湿度</text>
+        <text class="sensor-value">{{sensorData.humidity || '--'}}%</text>
+      </view>
+
+      <!-- 水位 -->
+      <view class="sensor-box {{sensorData.waterLevel > thresholds.waterLevel ? 'alarm' : ''}}">
+        <text class="sensor-icon">💦</text>
+        <text class="sensor-name">水位</text>
+        <text class="sensor-value">{{sensorData.waterLevel || '--'}}%</text>
+      </view>
+
+      <!-- 空气质量 -->
+      <view class="sensor-box {{sensorData.airQuality === 'bad' ? 'alarm' : ''}}">
+        <text class="sensor-icon">{{sensorData.airQuality === 'bad' ? '😷' : '😊'}}</text>
+        <text class="sensor-name">空气</text>
+        <text class="sensor-value">{{sensorData.airQuality === 'nice' ? '良好' : (sensorData.airQuality === 'bad' ? '污染' : '--')}}</text>
+      </view>
+
+      <!-- 天窗 -->
+      <view class="sensor-box device-box">
+        <text class="sensor-icon">{{sensorData.servoStatus === 'ON' ? '🪟' : '🚪'}}</text>
+        <text class="sensor-name">天窗</text>
+        <text class="sensor-value">{{sensorData.servoStatus === 'ON' ? '开启' : '关闭'}}</text>
+      </view>
+
+      <!-- 风扇 -->
+      <view class="sensor-box device-box">
+        <text class="sensor-icon">{{sensorData.motorStatus === 'ON' ? '🌀' : '💨'}}</text>
+        <text class="sensor-name">风扇</text>
+        <text class="sensor-value">{{sensorData.motorStatus === 'ON' ? '运行' : '关闭'}}</text>
+      </view>
+    </view>
+
+    <!-- 数据更新时间 -->
+    <view class="update-time" wx:if="{{lastUpdateTime}}">
+      <text class="time-label">最后更新：</text>
+      <text class="time-value">{{lastUpdateTime}}</text>
+    </view>
+  </scroll-view>
+</view>

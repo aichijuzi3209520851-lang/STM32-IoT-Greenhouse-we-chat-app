@@ -1,0 +1,403 @@
+/* 传感器页面样式 - 清新绿色主题 */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #E8F8F5 0%, #F0F8F5 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+/* MQTT连接状态栏 */
+.mqtt-status-bar {
+  background: #FFFFFF;
+  padding: 20rpx 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2rpx solid #D1F2EB;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.mqtt-status-bar.connected {
+  background: linear-gradient(135deg, #D5F4E6, #FFFFFF);
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+}
+
+.status-icon {
+  font-size: 32rpx;
+  margin-right: 10rpx;
+  color: #BDC3C7;
+}
+
+.mqtt-status-bar.connected .status-icon {
+  color: #27AE60;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-text {
+  font-size: 28rpx;
+  color: #5D6D7E;
+  font-weight: bold;
+}
+
+.connect-btn {
+  background: linear-gradient(135deg, #52BE80, #27AE60);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 30rpx;
+  padding: 8rpx 25rpx;
+  font-size: 24rpx;
+}
+
+.connect-btn::after {
+  border: none;
+}
+
+/* 传感器滚动区域 */
+.sensor-scroll {
+  flex: 1;
+  padding: 20rpx 25rpx;
+}
+
+/* 传感器网格布局 */
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+/* 传感器方块 */
+.sensor-box {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 30rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(82, 190, 128, 0.1);
+  border: 2rpx solid #D1F2EB;
+  transition: all 0.3s;
+  min-height: 200rpx;
+}
+
+.sensor-box.alarm {
+  background: linear-gradient(135deg, #FADBD8, #FFFFFF);
+  border-color: #E74C3C;
+  animation: boxPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes boxPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.sensor-box .sensor-icon {
+  font-size: 60rpx;
+  margin-bottom: 15rpx;
+}
+
+.sensor-box .sensor-name {
+  font-size: 26rpx;
+  color: #85929E;
+  margin-bottom: 10rpx;
+}
+
+.sensor-box .sensor-value {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #2C3E50;
+  text-align: center;
+}
+
+.sensor-box.alarm .sensor-value {
+  color: #E74C3C;
+}
+
+.sensor-box.device-box {
+  border-color: #52BE80;
+}
+
+.sensor-box.device-box .sensor-value {
+  color: #52BE80;
+}
+
+/* 控制面板 */
+.control-panel {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(82, 190, 128, 0.1);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #E8F8F5;
+}
+
+.panel-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #2C3E50;
+}
+
+.panel-hint {
+  font-size: 24rpx;
+  color: #52BE80;
+  background: #E8F8F5;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+}
+
+/* 控制区域 */
+.control-section {
+  margin-bottom: 25rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  color: #5D6D7E;
+  font-weight: bold;
+  margin-bottom: 15rpx;
+}
+
+/* 模式按钮 */
+.mode-buttons {
+  display: flex;
+  gap: 15rpx;
+}
+
+.mode-btn {
+  flex: 1;
+  background: #F0F8F5;
+  border: 2rpx solid #D1F2EB;
+  border-radius: 15rpx;
+  padding: 25rpx 15rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s;
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #52BE80, #27AE60);
+  border-color: #27AE60;
+}
+
+.mode-btn .btn-icon {
+  font-size: 48rpx;
+  margin-bottom: 10rpx;
+}
+
+.mode-btn .btn-text {
+  font-size: 26rpx;
+  color: #5D6D7E;
+  font-weight: bold;
+}
+
+.mode-btn.active .btn-text {
+  color: #FFFFFF;
+}
+
+.mode-btn::after {
+  border: none;
+}
+
+/* 设备控制按钮 */
+.device-controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15rpx;
+}
+
+.control-btn {
+  background: linear-gradient(135deg, #E8F8F5, #D1F2EB);
+  border: 2rpx solid #52BE80;
+  border-radius: 15rpx;
+  padding: 25rpx 15rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s;
+}
+
+.control-btn:active {
+  background: linear-gradient(135deg, #52BE80, #27AE60);
+}
+
+.control-btn .btn-icon {
+  font-size: 48rpx;
+  margin-bottom: 10rpx;
+}
+
+.control-btn .btn-text {
+  font-size: 26rpx;
+  color: #2C3E50;
+  font-weight: bold;
+}
+
+.control-btn:active .btn-text {
+  color: #FFFFFF;
+}
+
+.control-btn::after {
+  border: none;
+}
+
+/* 模式提示 */
+.mode-hint {
+  background: #FFF9E6;
+  border-radius: 10rpx;
+  padding: 20rpx;
+  margin-top: 15rpx;
+}
+
+.mode-hint text {
+  font-size: 24rpx;
+  color: #856404;
+  line-height: 1.6;
+}
+
+/* 更新时间 */
+.update-time {
+  text-align: center;
+  padding: 30rpx 0;
+  margin-top: 20rpx;
+}
+
+.time-label {
+  font-size: 24rpx;
+  color: #95A5A6;
+}
+
+.time-value {
+  font-size: 24rpx;
+  color: #52BE80;
+  font-weight: bold;
+  margin-left: 10rpx;
+}
+
+/* MQTT配置弹窗 */
+.mqtt-config-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.config-content {
+  width: 600rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.config-header {
+  background: linear-gradient(135deg, #52BE80, #27AE60);
+  padding: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.config-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #FFFFFF;
+}
+
+.close-btn {
+  font-size: 48rpx;
+  color: #FFFFFF;
+  line-height: 1;
+  padding: 0 10rpx;
+}
+
+.config-body {
+  padding: 30rpx;
+}
+
+.config-item {
+  margin-bottom: 25rpx;
+}
+
+.config-label {
+  display: block;
+  font-size: 28rpx;
+  color: #2C3E50;
+  margin-bottom: 10rpx;
+  font-weight: bold;
+}
+
+.config-input {
+  width: 100%;
+  height: 70rpx;
+  background: #E8F8F5;
+  border-radius: 10rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  color: #2C3E50;
+  box-sizing: border-box;
+}
+
+.config-hint {
+  background: #FFF3CD;
+  border-radius: 10rpx;
+  padding: 15rpx;
+  margin-top: 10rpx;
+}
+
+.config-hint text {
+  font-size: 24rpx;
+  color: #856404;
+}
+
+.config-footer {
+  display: flex;
+  border-top: 1rpx solid #E8F8F5;
+}
+
+.cancel-btn, .save-btn {
+  flex: 1;
+  height: 90rpx;
+  line-height: 90rpx;
+  text-align: center;
+  font-size: 28rpx;
+  border: none;
+  border-radius: 0;
+}
+
+.cancel-btn {
+  background: #FFFFFF;
+  color: #85929E;
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #52BE80, #27AE60);
+  color: #FFFFFF;
+  font-weight: bold;
+}
+
+.cancel-btn::after, .save-btn::after {
+  border: none;
+}
