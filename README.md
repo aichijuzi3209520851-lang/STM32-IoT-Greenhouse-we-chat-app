@@ -1,280 +1,79 @@
 # 智能温室大棚监测小程序 · Smart Greenhouse Monitoring
 
 ![WeChat Mini Program](https://img.shields.io/badge/WeChat-MiniProgram-07C160?style=for-the-badge&logo=wechat&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-ES6-F7DF1E?style=for-the-badge&logo=javascript&logoColor=222)
-![MQTT over WebSocket](https://img.shields.io/badge/MQTT-WebSocket-660066?style=for-the-badge&logo=eclipsemosquitto&logoColor=white)
-![License](https://img.shields.io/badge/License-ISC-blue?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-WeChat%20DevTools-2B2B2B?style=for-the-badge)
+![MQTT](https://img.shields.io/badge/MQTT-over%20WebSocket-660066?style=for-the-badge&logo=eclipsemosquitto&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-一个面向物联网（IoT）教学与实训场景的微信小程序项目，围绕 **温室环境实时监测**、**MQTT 数据接入**、**ESP32 摄像头预览** 展开。  
-项目采用原生小程序技术栈，页面结构由 WXML 组织，样式由 WXSS 定义，业务逻辑由 JS 驱动，配置由 JSON 管理，适合课程设计、毕业设计和硬件联调实验快速落地。
+STM32 智能温室物联网系统的**移动端**：通过 MQTT over WebSocket 订阅 PC 上位机发布的环境数据，
+实时展示温度 / 空气湿度 / 土壤湿度 / 空气质量四项环境状态，并可远程控制天窗与风扇。
 
----
+> 系统总览、固件烧录、EMQX 部署请看仓库根目录的 README。
 
-## ✨ 功能特性（Features）
+## 功能特性
 
-- 🌱 **首页引导（Home Dashboard）**：展示系统简介、功能入口、运行状态和作者信息，支持一键跳转传感器页面。
-- 📡 **MQTT 实时监测（Sensor Monitor）**：通过 `wx.connectSocket` 与 MQTT Broker 建立 WebSocket 连接，手动完成 CONNECT / SUBSCRIBE 报文发送，实时接收并解析环境数据。
-- 🚨 **阈值告警（Threshold Alarm）**：温度、湿度、水位、空气质量异常时触发 UI 高亮与振动提醒，提升告警可感知性。
-- 📷 **ESP32-CAM 预览（Camera Stream）**：支持 IP 输入智能补全（协议、端口、路径），并提供连接历史记录与快速回填。
-- 💾 **本地持久化（Local Storage）**：MQTT 参数与摄像头历史记录使用 `wx.setStorageSync` / `wx.getStorageSync` 保存，重启后可继续使用。
-- 🎨 **移动端友好 UI（Mobile-first UI）**：使用 `rpx`、渐变卡片、动效和栅格布局，兼顾视觉一致性与手机端适配。
+- **温室主题轮播首页**：Hero 区 4 张 Pexels 免费商用实拍图（拱形大棚纵览 / 番茄行栽 / 草莓大棚 / LED 垂直农场）自动轮播（4s/帧、无缝循环），底部渐变遮罩承载白字标题，胶囊式指示点随滑动激活
+- **MQTT 实时监测**：`wx.connectSocket` 连接 EMQX（默认 `8083` WebSocket 端口），手动构造 CONNECT / SUBSCRIBE 报文完成订阅，解析上位机发布的 JSON 数据帧（1.5 秒/帧）
+- **执行器远程控制**：「执行器」页支持自动/手动模式切换（`mode-0/1`），手动模式下远程开关天窗（`DUOJ-0/1`）与风扇（`MOTOR-0/1`），指令经 `green/control` 主题 → 上位机原文转发串口 → STM32 执行；设备真实状态由 `green/data` 回显
+- **连接保活与自动重连**：CONNECT 携带 keep-alive 60s，每 30s 发送 PINGREQ 心跳；异常断开按 2s/4s/8s 指数退避自动重连（最多 3 次），关闭前发送 DISCONNECT 优雅退出
+- **强制手填订阅主题**：订阅主题默认留空，必须由用户输入（与上位机发布主题保持一致）；连接成功后自动写入历史记录（最多 5 条，传感器页与执行器页共用），下次在配置弹窗中一键回填
+- **统一阈值告警**：与固件 / 上位机使用同一组阈值（温度>26°C、湿度>85%RH、土壤湿度>40%、空气 bad），卡片红色高亮、报警横幅、状态跳变时震动一次
+- **本地持久化**：连接配置与历史记录通过 `wx.setStorageSync` 保存
 
----
+## 目录结构
 
-## 🖼️ 预览图（Preview）
-
-> 当前仓库未包含完整页面截图/GIF，以下使用项目内静态资源占位展示。建议后续补充 `screenshots/*.png` 或 `demo.gif` 以便在 GitHub 首页直观预览。
-
-| 模块 | 预览 |
-|:---|:---:|
-| 项目标识 | <img src="./ICON/爱吃橘子.jpg" alt="project-logo" width="220" /> |
-| 首页 Tab 图标 | <img src="./images/首页-选中状态.png" alt="home-icon" width="120" /> |
-| 传感器 Tab 图标 | <img src="./images/传感器-选中状态.png" alt="sensor-icon" width="120" /> |
-| 摄像头 Tab 图标 | <img src="./images/摄像头_选中状态.png" alt="camera-icon" width="120" /> |
-
----
-
-## 🚀 快速上手（Quick Start）
-
-### 1) 克隆仓库
-
-```bash
-git clone <YOUR_REPO_URL> miniprogram-10 && cd miniprogram-10
+```
+├── app.js               # 全局配置: 默认服务器 192.168.36.221:8083, 订阅主题默认留空
+├── app.json             # 页面与 tabBar(首页/传感器/执行器), 浅色导航栏
+├── app.wxss             # 全局设计令牌与通用样式
+├── utils/
+│   └── mqtt.js          # 共享 MQTT 3.1.1 客户端: 传感器页与执行器页共用(订阅+发布)
+├── pages/
+│   ├── home/            # 首页: 4图轮播Hero / 功能介绍 / 系统信息 / 开发者
+│   ├── sensor/          # 传感器页: 连接状态栏 / 报警横幅 / 四宫格环境数据 / 配置弹窗(含历史)
+│   └── actuator/        # 执行器页: 模式切换 / 天窗·风扇控制卡片 / 最近指令 / 配置弹窗
+├── ICON/ images/        # 图标资源(报警/正常/开关双状态) + hero-*.jpg 轮播背景图
+├── MQTT连接故障排查.md   # EMQX/防火墙/域名校验排障指南
+└── 真机调试MQTT连接指南.md # 真机调试网络配置指南(配套 检查网络配置.bat)
 ```
 
-### 2) 安装依赖
+## 快速上手
 
-```bash
-npm install
+1. 微信开发者工具导入本目录，AppID 使用自己的测试号或已有 AppID
+2. 「详情 → 本地设置」勾选 **不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书**
+3. 先启动 EMQX 服务器并让上位机连上（见仓库根目录 README），然后在"传感器"页点击 **配置**：
+   - 服务器地址：EMQX 所在电脑的局域网 IP（默认示例 `192.168.36.221`）
+   - WebSocket 端口：`8083`
+   - 订阅主题：与上位机发布主题一致（默认 `green/data`）
+4. 点击"保存并连接"，状态栏变绿、卡片出现数据即成功
+5. 切到「执行器」页：先切换 **手动控制** 模式，再用卡片上的按钮开关天窗 / 风扇
+   （自动模式下设备按统一阈值自主联动，按钮呈禁用态；配置与连接历史与传感器页共用）
+
+## MQTT 数据契约
+
+上位机发布到 `green/data`（QoS 1）的 JSON：
+
+```json
+{
+  "timestamp": "2026-10-25 15:30:45.123",
+  "temperature": 26,
+  "humidity": 60,
+  "soilMoisture": 35,
+  "airQuality": "nice",
+  "servoStatus": "OFF",
+  "motorStatus": "OFF",
+  "alarmType": "正常",
+  "hasAlarm": false
+}
 ```
 
-### 3) 微信开发者工具构建 NPM
+小程序发布到 `green/control` 的**纯文本指令**（上位机订阅后原文经串口转发固件）：
 
-1. 打开微信开发者工具并导入项目根目录。  
-2. 菜单栏执行：**工具 → 构建 npm**。  
-3. 在「详情 → 本地设置」中勾选：  
-   - 不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书  
-   - 启用 npm
+| 指令 | 含义 | 生效条件 |
+|------|------|----------|
+| `mode-0` / `mode-1` | 自动 / 手动模式 | 任意时刻 |
+| `DUOJ-0` / `DUOJ-1` | 天窗关(0°) / 天窗开(180°) | 仅手动模式 |
+| `MOTOR-0` / `MOTOR-1` | 风扇停 / 风扇全速 | 仅手动模式 |
 
-### 4) 本地预览与调试
+## License
 
-- 启动本地 MQTT Broker（如 EMQX），确保 WebSocket 监听端口可用（默认示例：`8083`）。
-- 在小程序「传感器」页面配置 `Host / Port / Topic` 后连接。
-- 在「摄像头」页面输入 ESP32-CAM IP（可仅输入 IP，程序会自动补全端口与路径）。
-
-### 5) 上传发布
-
-1. 微信开发者工具中点击 **上传**。  
-2. 填写版本号与备注。  
-3. 登录微信公众平台完成提审与发布流程。
-
-### 6) 一行命令直接导入微信开发者工具
-
-```powershell
-"C:\Program Files (x86)\Tencent\微信web开发者工具\cli.bat" open --project "$PWD"
-```
-
----
-
-## 📁 目录结构（Structure）
-
-```text
-miniprogram-10/
-├─ app.js
-├─ app.json
-├─ app.wxss
-├─ package.json
-├─ package-lock.json
-├─ project.config.json
-├─ sitemap.json
-├─ sensor.js
-├─ pages/
-│  ├─ home/
-│  │  ├─ home.wxml
-│  │  ├─ home.wxss
-│  │  ├─ home.js
-│  │  └─ home.json
-│  ├─ sensor/
-│  │  ├─ sensor.wxml
-│  │  ├─ sensor.wxss
-│  │  ├─ sensor.js
-│  │  └─ sensor.json
-│  └─ camera/
-│     ├─ camera.wxml
-│     ├─ camera.wxss
-│     ├─ camera.js
-│     └─ camera.json
-├─ components/
-│  └─ navigation-bar/
-│     ├─ navigation-bar.wxml
-│     ├─ navigation-bar.wxss
-│     ├─ navigation-bar.js
-│     └─ navigation-bar.json
-├─ images/
-├─ ICON/
-└─ docs & notes
-   ├─ MQTT连接故障排查.md
-   ├─ 真机调试MQTT连接指南.md
-   ├─ 使用说明.txt
-   └─ 项目说明.txt
-```
-
----
-
-## ⚙️ 配置说明（Configuration）
-
-### app.json 关键字段
-
-| 字段 | 当前值/状态 | 说明 |
-|:---|:---|:---|
-| `pages` | `home / sensor / camera` | 小程序主路由，按数组顺序注册页面 |
-| `tabBar` | 三个 Tab（首页、传感器、摄像头） | 底部导航入口 |
-| `window.navigationBarTitleText` | `智能温室大棚监测` | 全局导航栏标题 |
-| `permission.scope.camera` | 已声明 | 摄像头权限用途说明 |
-| `style` | `v2` | 使用新样式编译体系 |
-| `lazyCodeLoading` | `requiredComponents` | 启用按需组件懒加载 |
-
-### 云开发环境 ID（CloudBase Env ID）
-
-| 项 | 当前状态 |
-|:---|:---|
-| `wx.cloud.init` | 未使用 |
-| `cloudfunctions/` | 未创建 |
-| Environment ID | 暂未配置 |
-
-说明：当前项目不依赖云开发，核心通信链路为 **Mini Program ↔ MQTT Broker（WebSocket）**。若后续需要云函数、云数据库或对象存储，请在 `app.js` 增加 `wx.cloud.init({ env: "your-env-id" })` 并新增 `cloudfunctions` 目录。
-
-### 域名白名单（Domain Whitelist）
-
-| 场景 | 当前策略 |
-|:---|:---|
-| 开发阶段（本地 IP / HTTP） | 依赖开发者工具关闭合法域名校验 |
-| 生产阶段 | 建议配置 HTTPS 域名并在小程序后台加入业务域名白名单 |
-
----
-
-## 🧩 组件与 API 文档（Docs & Links）
-
-### 项目内组件 / 业务代码
-
-- 自定义导航组件：[`components/navigation-bar`](./components/navigation-bar)
-- 传感器业务页：[`pages/sensor/sensor.js`](./pages/sensor/sensor.js)
-- 摄像头业务页：[`pages/camera/camera.js`](./pages/camera/camera.js)
-- 全局配置入口：[`app.json`](./app.json)
-
-### 微信官方 API 文档
-
-- `wx.connectSocket`：<https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/wx.connectSocket.html>
-- `SocketTask.send`：<https://developers.weixin.qq.com/miniprogram/dev/api/network/websocket/SocketTask.send.html>
-- `wx.setStorageSync`：<https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.setStorageSync.html>
-- `wx.getStorageSync`：<https://developers.weixin.qq.com/miniprogram/dev/api/storage/wx.getStorageSync.html>
-- `wx.vibrateShort`：<https://developers.weixin.qq.com/miniprogram/dev/api/device/vibrate/wx.vibrateShort.html>
-
----
-
-## 🧠 架构与实现分析（Architecture Notes）
-
-### 核心功能模块
-
-1. **Home 模块**：品牌与系统入口展示，承担导航与状态感知。  
-2. **Sensor 模块**：MQTT 连接、二进制报文构造、PUBLISH 解析、数据映射与告警反馈。  
-3. **Camera 模块**：视频流 URL 规范化、连通性反馈、历史记录管理。  
-4. **UI 组件层**：`navigation-bar` 组件提供统一顶部栏能力（当前页面尚未广泛接入）。  
-
-### 技术栈
-
-- 前端框架：WeChat Mini Program 原生框架（WXML + WXSS + JS + JSON）
-- 通信协议：MQTT over WebSocket（手写简化报文）
-- 运行环境：微信开发者工具 / 微信客户端
-- 依赖管理：NPM（`package-lock.json` 中可见 `mqtt`、`events`、`stream-browserify`）
-
-### 第三方库引用与依赖现状
-
-- `package-lock.json` 记录了 `mqtt` 相关依赖树。  
-- `package.json` 当前 `dependencies` 为空，存在与 lock 文件不一致的情况。  
-- 业务代码目前走原生 `wx.connectSocket`，并未直接 `import mqtt`，属于“可选依赖已安装但未启用 SDK API”的状态。
-
-### 数据流方案（Data Flow）
-
-`STM32 / 上位机` → `MQTT Broker` → `小程序 WebSocket` → `MQTT 报文解析` → `setData` → `WXML 实时渲染` → `阈值判断与告警反馈`。
-
-### 错误处理策略（Error Handling）
-
-- **输入校验**：配置项不能为空，非法输入通过 `wx.showToast` 反馈。  
-- **连接异常处理**：`connectSocket fail`、`onError`、`onClose` 分场景提示。  
-- **数据解析保护**：`try...catch` 包裹 JSON 解析，防止异常 payload 影响页面可用性。  
-- **可视化反馈**：`showLoading`、`showModal`、`status bar`、`告警样式` 共同增强可观测性。  
-
----
-
-## 🤝 贡献指南（Contributing）
-
-欢迎提交 Issue / PR 改进功能与稳定性。建议遵循以下协作规范：
-
-### 分支命名（Branch Naming）
-
-- `feature/<module>-<short-desc>`
-- `fix/<module>-<short-desc>`
-- `refactor/<module>-<short-desc>`
-
-示例：`feature/sensor-threshold-persist`
-
-### 提交信息（Commit Message）
-
-推荐使用 Conventional Commits：
-
-```text
-feat(sensor): add mqtt reconnect backoff
-fix(camera): handle invalid ip input
-refactor(home): simplify card layout
-docs(readme): improve quick start
-```
-
-### PR 流程（Pull Request Workflow）
-
-1. 从 `main` 拉取最新代码并创建功能分支。  
-2. 本地自测通过后提交，保持单一主题变更。  
-3. 发起 PR，描述改动动机、影响范围、截图与测试步骤。  
-4. 通过 Review 后合并。
-
----
-
-
-## 📄 开源协议（License）
-
-本项目采用 **ISC License**，详见 `package.json` 中 `license` 字段。
-
----
-
-## 🗓️ 更新日志（Changelog）
-
-本节遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 规范，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
-
-## [1.0.0] - 2026-04-02
-
-### Added
-
-- 新增首页、传感器、摄像头三个业务页面与 TabBar 导航。  
-- 新增 MQTT 参数配置弹窗与本地缓存机制。  
-- 新增 MQTT 二进制 CONNECT / SUBSCRIBE 报文发送与消息解析。  
-- 新增阈值告警视觉反馈与振动提醒。  
-- 新增摄像头地址智能补全与历史记录。  
-- 新增 `navigation-bar` 自定义组件代码。  
-
-### Changed
-
-- 统一全局主题色为绿色系，提升页面视觉一致性。  
-
-### Fixed
-
-- 优化 MQTT 连接失败与异常提示，提升排错效率。  
-
----
-
-## 📌 说明补充（Notes）
-
-- 当前仓库未内置云函数（Cloud Functions）与云数据库（Cloud Database）逻辑。  
-- 当前 `project.config.json` 中 `appid` 已配置，导入后可直接进行本地编译与联调。  
-- 若你用于教学演示，建议优先阅读仓库内 `MQTT连接故障排查.md` 与 `真机调试MQTT连接指南.md`。
-
+MIT

@@ -1,101 +1,157 @@
 // pages/sensor/sensor.js
-const app = getApp()
+// 传感器数据页: 通过共享 MQTT 模块(utils/mqtt.js)订阅上位机发布的 JSON 数据
+// 页面职责: 连接配置/历史管理 + 阈值判定展示 + 报警提醒
+const { createMqttClient } = require('../../utils/mqtt')
+
+/* 统一报警阈值: 与 STM32 固件(ALARM_*_MAX) / PC 上位机保持完全一致 */
+const THRESHOLDS = {
+  temperature: 26,   // 温度报警上限(°C)
+  humidity: 85,      // 空气湿度报警上限(%RH)
+  soilMoisture: 40   // 土壤湿度报警上限(%, 过湿)
+}
+
+const HISTORY_KEY = 'mqtt_history'
+const HISTORY_MAX = 5
 
 Page({
   data: {
     mqttConnected: false,
-    socketTask: null,
+    connecting: false,
     showConfig: false,
     mqttHost: '192.168.36.221',
     mqttPort: '8083',
-    mqttTopic: 'LCW2',
+    mqttTopic: '',        // 默认留空, 强制用户手动输入(任务要求)
+    history: [],          // 成功连接过的 {host, port, topic} 历史记录
     sensorData: {
       temperature: null,
       humidity: null,
-      waterLevel: null,
+      soilMoisture: null,
       airQuality: null,
-      servoStatus: null,
-      motorStatus: null,
+      alarmType: null,
       warning: false
     },
-    thresholds: {
-      temperature: 30,
-      humidity: 90,
-      waterLevel: 50
-    },
+    thresholds: THRESHOLDS,
     lastUpdateTime: null
   },
 
-  onLoad(options) {
-    console.log('传感器页面加载')
-    // 从本地存储加载配置
+  /* ---------- 运行期状态(不参与渲染) ---------- */
+  _client: null,           // 共享 MQTT 客户端实例
+  _prevWarning: false,     // 上一帧报警状态(用于边沿触发震动)
+
+  onLoad() {
     this.loadConfig()
+    this.loadHistory()
+  },
+
+  // 每次回到本页都刷新配置/历史: 与执行器页共用存储, 配置可能已在彼处修改
+  onShow() {
+    this.loadConfig()
+    this.loadHistory()
   },
 
   onUnload() {
-    this.disconnectMqtt()
+    if (this._client) this._client.destroy()
   },
 
-  // 加载配置
+  /* ==================== 配置与历史 ==================== */
+
+  // 加载持久化的连接配置
   loadConfig() {
     try {
       const host = wx.getStorageSync('mqtt_host')
       const port = wx.getStorageSync('mqtt_port')
       const topic = wx.getStorageSync('mqtt_topic')
-
       if (host) this.setData({ mqttHost: host })
       if (port) this.setData({ mqttPort: port })
-      if (topic) this.setData({ mqttTopic: topic })
+      if (topic) this.setData({ mqttTopic: topic })  // 历史上填过才回填, 否则保持空白
     } catch (error) {
       console.error('加载配置失败:', error)
     }
   },
 
-  // 显示配置弹窗
+  // 加载连接成功过的历史记录
+  loadHistory() {
+    try {
+      const history = wx.getStorageSync(HISTORY_KEY) || []
+      this.setData({ history })
+    } catch (error) {
+      console.error('加载历史记录失败:', error)
+    }
+  },
+
+  // 连接成功(收到SUBACK)后保存历史: 去重、最新在前、最多 HISTORY_MAX 条
+  saveHistory(entry) {
+    try {
+      let history = (wx.getStorageSync(HISTORY_KEY) || []).filter(
+        (item) => !(item.host === entry.host && item.port === entry.port && item.topic === entry.topic)
+      )
+      history.unshift(entry)
+      history = history.slice(0, HISTORY_MAX)
+      wx.setStorageSync(HISTORY_KEY, history)
+      this.setData({ history })
+    } catch (error) {
+      console.error('保存历史记录失败:', error)
+    }
+  },
+
+  // 点击历史记录 → 回填到输入框(用户确认后再点"保存并连接")
+  onHistoryTap(e) {
+    const item = e.currentTarget.dataset.item
+    if (!item) return
+    this.setData({
+      mqttHost: item.host,
+      mqttPort: item.port,
+      mqttTopic: item.topic
+    })
+    wx.showToast({ title: '已填入所选配置', icon: 'none' })
+  },
+
+  // 删除单条历史
+  onHistoryRemove(e) {
+    const index = e.currentTarget.dataset.index
+    const history = this.data.history.filter((_, i) => i !== index)
+    this.setData({ history })
+    try {
+      wx.setStorageSync(HISTORY_KEY, history)
+    } catch (error) {
+      console.error('删除历史记录失败:', error)
+    }
+  },
+
+  /* ==================== 配置弹窗 ==================== */
+
   showMqttConfig() {
     this.setData({ showConfig: true })
   },
 
-  // 隐藏配置弹窗
   hideConfig() {
     this.setData({ showConfig: false })
   },
 
-  // 阻止冒泡
   stopPropagation() {},
 
-  // 服务器地址输入
-  onHostInput(e) {
-    this.setData({ mqttHost: e.detail.value })
-  },
-
-  // 端口输入
-  onPortInput(e) {
-    this.setData({ mqttPort: e.detail.value })
-  },
-
-  // 主题输入
-  onTopicInput(e) {
-    this.setData({ mqttTopic: e.detail.value })
-  },
+  onHostInput(e) { this.setData({ mqttHost: e.detail.value }) },
+  onPortInput(e) { this.setData({ mqttPort: e.detail.value }) },
+  onTopicInput(e) { this.setData({ mqttTopic: e.detail.value }) },
 
   // 保存配置并连接
   saveConfigAndConnect() {
     const { mqttHost, mqttPort, mqttTopic } = this.data
 
-    if (!mqttHost || !mqttPort || !mqttTopic) {
-      wx.showToast({
-        title: '请填写完整配置',
-        icon: 'none'
-      })
+    if (!mqttHost.trim() || !mqttPort.trim()) {
+      wx.showToast({ title: '请填写服务器地址和端口', icon: 'none' })
+      return
+    }
+    // 订阅主题必须由用户显式输入(默认空白, 不再内置 LCW2)
+    if (!mqttTopic.trim()) {
+      wx.showToast({ title: '请输入订阅主题(需与上位机发布主题一致)', icon: 'none' })
       return
     }
 
-    // 保存到本地存储
     try {
-      wx.setStorageSync('mqtt_host', mqttHost)
-      wx.setStorageSync('mqtt_port', mqttPort)
-      wx.setStorageSync('mqtt_topic', mqttTopic)
+      wx.setStorageSync('mqtt_host', mqttHost.trim())
+      wx.setStorageSync('mqtt_port', mqttPort.trim())
+      wx.setStorageSync('mqtt_topic', mqttTopic.trim())
     } catch (error) {
       console.error('保存配置失败:', error)
     }
@@ -104,311 +160,103 @@ Page({
     this.connectMqtt()
   },
 
-  // 连接MQTT (使用原生WebSocket)
+  /* ==================== MQTT 连接管理 ==================== */
+
   connectMqtt() {
-    const { mqttHost, mqttPort } = this.data
-    const connectUrl = `ws://${mqttHost}:${mqttPort}/mqtt`
+    const { mqttHost, mqttPort, mqttTopic } = this.data
+    console.log('===== MQTT连接开始 =====', `ws://${mqttHost}:${mqttPort}/mqtt`, '主题:', mqttTopic)
 
-    console.log('===== MQTT连接开始 =====')
-    console.log('连接URL:', connectUrl)
-    console.log('主机:', mqttHost)
-    console.log('端口:', mqttPort)
-    console.log('主题:', this.data.mqttTopic)
+    if (this._client) this._client.destroy()
 
-    // 显示连接中提示
-    wx.showLoading({
-      title: '正在连接...',
-      mask: true
+    this._client = createMqttClient({
+      host: mqttHost.trim(),
+      port: mqttPort.trim(),
+      topics: [mqttTopic.trim()],
+      clientIdPrefix: 'wx_sensor_',
+
+      onState: (state, info) => this.handleClientState(state, info),
+      onSubscribed: () => {
+        // 订阅成功才算"连接过", 此时才写入历史记录
+        this.saveHistory({
+          host: this.data.mqttHost,
+          port: this.data.mqttPort,
+          topic: this.data.mqttTopic
+        })
+        wx.showToast({ title: '订阅成功, 开始接收数据', icon: 'success' })
+      },
+      onPayload: (text) => this.handleSensorJson(text),
+      onLog: (level, msg) => console.log(`[${level}] ${msg}`)
     })
+    this._client.connect()
+  },
 
-    try {
-      const socketTask = wx.connectSocket({
-        url: connectUrl,
-        header: {
-          'content-type': 'application/json'
-        },
-        protocols: ['mqtt'],
-        success: () => {
-          console.log('✓ WebSocket连接请求已发送')
-        },
-        fail: (err) => {
-          console.error('✗ WebSocket连接请求失败:', err)
-          console.error('错误详情:', JSON.stringify(err))
-          wx.hideLoading()
-          wx.showModal({
-            title: '连接失败',
-            content: `无法连接到${connectUrl}\n\n错误信息: ${err.errMsg || '未知错误'}\n\n请检查:\n1. MQTT服务器是否运行\n2. IP地址和端口是否正确\n3. 防火墙是否开放8083端口\n4. EMQX WebSocket是否启用`,
-            showCancel: false
-          })
-        }
-      })
-
-      // 监听 WebSocket 连接打开
-      socketTask.onOpen(() => {
-        console.log('✓ WebSocket连接已成功建立')
-        wx.hideLoading()
-
-        // 发送 MQTT CONNECT 数据包
-        const clientId = 'wx_sensor_' + Math.random().toString(16).substring(2, 10)
-        console.log('客户端ID:', clientId)
-        console.log('正在发送MQTT CONNECT包...')
-        this.sendMqttConnect(socketTask, clientId)
-
-        this.setData({
-          mqttConnected: true,
-          socketTask: socketTask
-        })
-
-        wx.showToast({
-          title: 'MQTT已连接',
-          icon: 'success',
-          duration: 2000
-        })
-
-        // 订阅主题
-        setTimeout(() => {
-          console.log('正在订阅主题:', this.data.mqttTopic)
-          this.sendMqttSubscribe(socketTask, this.data.mqttTopic)
-        }, 500)
-      })
-
-      // 监听 WebSocket 接收到服务器的消息
-      socketTask.onMessage((res) => {
-        this.handleMqttMessage(res.data)
-      })
-
-      // 监听 WebSocket 错误
-      socketTask.onError((err) => {
-        console.error('✗ WebSocket错误:', err)
-        console.error('错误详情:', JSON.stringify(err))
-        wx.hideLoading()
-        wx.showModal({
-          title: 'WebSocket错误',
-          content: `连接出现错误\n\n可能原因:\n1. 网络不稳定\n2. 服务器断开连接\n3. 防火墙阻止连接\n\n请重新尝试连接`,
-          showCancel: false
-        })
-        this.setData({ mqttConnected: false })
-      })
-
-      // 监听 WebSocket 关闭
-      socketTask.onClose((res) => {
-        console.log('✗ WebSocket连接已断开')
-        console.log('关闭代码:', res.code)
-        console.log('关闭原因:', res.reason)
-        this.setData({ mqttConnected: false })
-
-        if (res.code !== 1000) {
-          wx.showToast({
-            title: '连接已断开',
-            icon: 'none',
-            duration: 2000
-          })
-        }
-      })
-
-    } catch (error) {
-      console.error('✗ 创建WebSocket失败:', error)
-      console.error('异常详情:', JSON.stringify(error))
-      wx.hideLoading()
+  // 将客户端生命周期状态映射到页面 UI
+  handleClientState(state, info) {
+    if (state === 'connecting') {
+      this.setData({ connecting: true })
+    } else if (state === 'connected') {
+      this.setData({ mqttConnected: true, connecting: false })
+    } else if (state === 'reconnecting') {
+      this.setData({ mqttConnected: false, connecting: false })
+      wx.showToast({ title: `${info.reason},${info.delay / 1000}s后自动重连`, icon: 'none' })
+    } else if (state === 'failed') {
+      this.setData({ mqttConnected: false, connecting: false })
       wx.showModal({
-        title: '连接异常',
-        content: `创建连接时发生异常\n\n${error.message || '未知异常'}`,
+        title: '连接失败',
+        content: `${info.reason}。\n\n请检查:\n1. EMQX服务器是否在运行\n2. 手机与服务器是否同一局域网\n3. 上位机是否在发布数据`,
         showCancel: false
       })
+    } else if (state === 'closed') {
+      this.setData({ mqttConnected: false, connecting: false })
     }
   },
 
-  // 断开MQTT
+  // 用户手动断开(不触发自动重连)
   disconnectMqtt() {
-    const { socketTask } = this.data
-    if (socketTask) {
-      socketTask.close({
-        success: () => {
-          this.setData({ mqttConnected: false, socketTask: null })
-          wx.showToast({
-            title: '已断开连接',
-            icon: 'none'
-          })
-        }
-      })
-    }
+    if (this._client) this._client.disconnect()
+    this.setData({ mqttConnected: false, connecting: false })
+    wx.showToast({ title: '已断开连接', icon: 'none' })
   },
 
-  // 发送 MQTT CONNECT 数据包
-  sendMqttConnect(socketTask, clientId) {
-    console.log('正在构造MQTT CONNECT数据包...')
+  /* ==================== 数据处理 ==================== */
 
-    // 简化的 MQTT CONNECT 数据包
-    const protocolName = 'MQTT'
-    const protocolLevel = 4
-
-    let packet = []
-
-    // Fixed header
-    packet.push(0x10) // CONNECT packet type
-
-    // Remaining length (will be calculated)
-    let variableHeader = []
-
-    // Protocol name
-    variableHeader.push(0, protocolName.length)
-    for (let i = 0; i < protocolName.length; i++) {
-      variableHeader.push(protocolName.charCodeAt(i))
-    }
-
-    // Protocol level
-    variableHeader.push(protocolLevel)
-
-    // Connect flags
-    variableHeader.push(0x02) // Clean session
-
-    // Keep alive
-    variableHeader.push(0, 60)
-
-    // Client ID
-    const clientIdBytes = []
-    clientIdBytes.push(0, clientId.length)
-    for (let i = 0; i < clientId.length; i++) {
-      clientIdBytes.push(clientId.charCodeAt(i))
-    }
-
-    const remainingLength = variableHeader.length + clientIdBytes.length
-    packet.push(remainingLength)
-    packet = packet.concat(variableHeader).concat(clientIdBytes)
-
-    const buffer = new Uint8Array(packet).buffer
-
-    console.log('MQTT CONNECT包大小:', packet.length, 'bytes')
-
-    socketTask.send({
-      data: buffer,
-      success: () => {
-        console.log('✓ MQTT CONNECT包发送成功')
-      },
-      fail: (err) => {
-        console.error('✗ MQTT CONNECT包发送失败:', err)
-      }
-    })
-  },
-
-  // 发送 MQTT SUBSCRIBE 数据包
-  sendMqttSubscribe(socketTask, topic) {
-    console.log('正在构造MQTT SUBSCRIBE数据包...')
-
-    let packet = []
-
-    // Fixed header
-    packet.push(0x82) // SUBSCRIBE packet type with QoS 1
-
-    // Packet identifier
-    const packetId = [0, 1]
-
-    // Topic
-    const topicBytes = []
-    topicBytes.push(0, topic.length)
-    for (let i = 0; i < topic.length; i++) {
-      topicBytes.push(topic.charCodeAt(i))
-    }
-    topicBytes.push(0) // QoS 0
-
-    const remainingLength = packetId.length + topicBytes.length
-    packet.push(remainingLength)
-    packet = packet.concat(packetId).concat(topicBytes)
-
-    const buffer = new Uint8Array(packet).buffer
-
-    console.log('MQTT SUBSCRIBE包大小:', packet.length, 'bytes')
-    console.log('订阅主题:', topic)
-
-    socketTask.send({
-      data: buffer,
-      success: () => {
-        console.log('✓ MQTT SUBSCRIBE包发送成功')
-      },
-      fail: (err) => {
-        console.error('✗ MQTT SUBSCRIBE包发送失败:', err)
-      }
-    })
-  },
-
-  // 处理MQTT消息
-  handleMqttMessage(data) {
+  // 解析 green/data 的 JSON 载荷并更新界面
+  handleSensorJson(text) {
+    let jsonData
     try {
-      // 将 ArrayBuffer 转换为字符串
-      const uint8Array = new Uint8Array(data)
-
-      console.log('收到MQTT消息，数据包大小:', uint8Array.length, 'bytes')
-      console.log('消息类型:', '0x' + uint8Array[0].toString(16))
-
-      // 检查是否是 PUBLISH 消息 (0x30)
-      if (uint8Array[0] >> 4 === 3) {
-        console.log('这是一个PUBLISH消息')
-
-        // 解析 PUBLISH 消息
-        let pos = 1
-
-        // 解析 remaining length
-        let multiplier = 1
-        let remainingLength = 0
-        let byte
-        do {
-          byte = uint8Array[pos++]
-          remainingLength += (byte & 0x7F) * multiplier
-          multiplier *= 128
-        } while ((byte & 0x80) !== 0)
-
-        // 跳过 topic length 和 topic
-        const topicLength = (uint8Array[pos] << 8) + uint8Array[pos + 1]
-        pos += 2 + topicLength
-
-        // 提取 payload
-        const payloadBytes = uint8Array.slice(pos)
-        let payload = ''
-        for (let i = 0; i < payloadBytes.length; i++) {
-          payload += String.fromCharCode(payloadBytes[i])
-        }
-
-        console.log('消息负载:', payload)
-
-        // 尝试解析 JSON
-        const jsonData = JSON.parse(payload)
-        console.log('✓ 解析成功，传感器数据:', jsonData)
-
-        // 更新传感器数据
-        this.setData({
-          sensorData: {
-            temperature: jsonData.temperature,
-            humidity: jsonData.humidity,
-            waterLevel: jsonData.waterLevel,
-            airQuality: jsonData.airQuality,
-            servoStatus: jsonData.servoStatus,
-            motorStatus: jsonData.motorStatus,
-            warning: jsonData.warning || jsonData.hasAlarm
-          },
-          lastUpdateTime: this.formatTime(new Date())
-        })
-
-        // 如果有报警，震动提醒
-        if (jsonData.warning) {
-          console.log('⚠ 报警触发，开启震动')
-          wx.vibrateShort({ type: 'heavy' })
-        }
-      } else if (uint8Array[0] === 0x20) {
-        // CONNACK
-        console.log('✓ 收到CONNACK确认包')
-      } else if (uint8Array[0] === 0x90) {
-        // SUBACK
-        console.log('✓ 收到SUBACK确认包，订阅成功')
-      } else {
-        console.log('收到其他类型的MQTT消息')
-      }
+      jsonData = JSON.parse(text)
     } catch (error) {
-      console.error('✗ 解析MQTT消息失败:', error)
-      console.error('错误详情:', error.message)
+      console.error('✗ JSON解析失败:', error, text)
+      return
     }
+
+    const warning = !!(jsonData.warning || jsonData.hasAlarm)
+
+    this.setData({
+      sensorData: {
+        temperature: jsonData.temperature,
+        humidity: jsonData.humidity,
+        // 上位机 v2.3 起字段名为 soilMoisture, 兼容旧 waterLevel
+        soilMoisture: jsonData.soilMoisture != null ? jsonData.soilMoisture : jsonData.waterLevel,
+        airQuality: jsonData.airQuality,
+        alarmType: jsonData.alarmType || null,
+        warning
+      },
+      lastUpdateTime: this.formatTime(new Date())
+    })
+
+    // 报警状态由"正常→报警"跳变时震动提醒一次, 避免持续刷屏
+    if (warning && !this._prevWarning) {
+      wx.vibrateShort({ type: 'heavy' })
+    }
+    this._prevWarning = warning
   },
 
-  // 格式化时间
+  // 跳转执行器页(设备控制入口)
+  goToActuator() {
+    wx.switchTab({ url: '/pages/actuator/actuator' })
+  },
+
   formatTime(date) {
     const hour = date.getHours().toString().padStart(2, '0')
     const minute = date.getMinutes().toString().padStart(2, '0')
