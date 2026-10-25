@@ -9,6 +9,10 @@ STM32 智能温室物联网系统的**移动端**：通过 MQTT over WebSocket �
 
 > 系统总览、固件烧录、EMQX 部署请看仓库根目录的 README。
 
+> ⚠️ **单一真源声明**：本仓库为小程序的历史独立仓，自 V1.2 起**已整体并入主仓**
+> [`BYSJ-ZYX/04-WeChat-Miniprogram`](https://github.com/aichijuzi3209520851-lang/BYSJ-ZYX/tree/main/04-WeChat-Miniprogram)。
+> 后续功能（含光照强度字段）只在主仓演进，本仓库不再更新，仅作归档保留。
+
 ## 功能特性
 
 - **温室主题轮播首页**：Hero 区 4 张 Pexels 免费商用实拍图（拱形大棚纵览 / 番茄行栽 / 草莓大棚 / LED 垂直农场）自动轮播（4s/帧、无缝循环），底部渐变遮罩承载白字标题，胶囊式指示点随滑动激活

@@ -57,14 +57,22 @@
       <text class="cell-hint t-caption">过湿阈值 >{{thresholds.soilMoisture}}%</text>
     </view>
 
-    <!-- 空气质量 -->
-    <view class="cell card {{sensorData.airQuality === 'bad' ? 'cell--alarm' : ''}}">
-      <image class="cell-icon"
-        src="{{sensorData.airQuality === 'bad' ? '/ICON/空气质量劣状态.png' : '/ICON/空气质量优状态.png'}}"
-        mode="aspectFit" />
-      <text class="cell-name">空气质量</text>
-      <text class="cell-value cell-value--text">{{sensorData.airQuality === 'bad' ? '污染' : (sensorData.airQuality === 'nice' ? '良好' : '--')}}</text>
-      <text class="cell-hint t-caption">烟雾传感器判定</text>
+    <!-- 光照强度(仅采集展示, 与固件 Light.h 一致: 不参与报警联动) -->
+    <view class="cell card">
+      <image class="cell-icon" src="/ICON/光照.png" mode="aspectFit" />
+      <text class="cell-name">光照强度</text>
+      <text class="cell-value">{{sensorData.lightPercent == null ? '--' : sensorData.lightPercent}}<text class="cell-unit">%</text></text>
+      <text class="cell-hint t-caption">光敏电阻 · 仅展示</text>
+    </view>
+
+    <!-- 空气质量(占满整行: 状态型文案, 宽度富余更适合横向排布) -->
+    <view class="cell cell--wide card {{sensorData.airQuality === 'bad' ? 'cell--alarm' : ''}}">
+      <image class="cell-icon" src="{{sensorData.airQuality === 'bad' ? '/ICON/空气质量劣状态.png' : '/ICON/空气质量优状态.png'}}" mode="aspectFit" />
+      <view class="cell-wide-body">
+        <text class="cell-name">空气质量</text>
+        <text class="cell-value cell-value--text">{{sensorData.airQuality === 'bad' ? '污染' : (sensorData.airQuality === 'nice' ? '良好' : '--')}}</text>
+        <text class="cell-hint t-caption">烟雾传感器判定</text>
+      </view>
     </view>
   </view>
 

@@ -26,6 +26,7 @@ Page({
       temperature: null,
       humidity: null,
       soilMoisture: null,
+      lightPercent: null,   // 光照强度百分比(上位机 v2.4 起新增, 不参与报警)
       airQuality: null,
       alarmType: null,
       warning: false
@@ -238,6 +239,8 @@ Page({
         humidity: jsonData.humidity,
         // 上位机 v2.3 起字段名为 soilMoisture, 兼容旧 waterLevel
         soilMoisture: jsonData.soilMoisture != null ? jsonData.soilMoisture : jsonData.waterLevel,
+        // 上位机 v2.4 起新增 lightPercent(固件 Light:%d%%); 光照仅展示, 不参与报警判定
+        lightPercent: jsonData.lightPercent != null ? jsonData.lightPercent : null,
         airQuality: jsonData.airQuality,
         alarmType: jsonData.alarmType || null,
         warning
