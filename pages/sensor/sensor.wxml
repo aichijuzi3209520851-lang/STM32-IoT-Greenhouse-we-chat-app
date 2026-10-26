@@ -62,7 +62,7 @@
       <image class="cell-icon" src="/ICON/光照.png" mode="aspectFit" />
       <text class="cell-name">光照强度</text>
       <text class="cell-value">{{sensorData.lightPercent == null ? '--' : sensorData.lightPercent}}<text class="cell-unit">%</text></text>
-      <text class="cell-hint t-caption">光敏电阻 · 仅展示</text>
+      <text class="cell-hint t-caption">光敏传感器</text>
     </view>
 
     <!-- 空气质量(占满整行: 状态型文案, 宽度富余更适合横向排布) -->
